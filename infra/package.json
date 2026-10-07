@@ -1,0 +1,23 @@
+{
+  "name": "agropulse-infra",
+  "version": "1.0.0",
+  "description": "AgroPulse IoT Simulator and Kafka-to-Supabase Worker",
+  "main": "dist/worker.js",
+  "scripts": {
+    "build": "tsc",
+    "simulator": "tsx src/simulator.ts",
+    "worker": "tsx src/worker.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

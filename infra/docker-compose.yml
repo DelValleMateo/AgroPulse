@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # 1. Redpanda (Kafka-compatible event broker)
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.8
+    container_name: agropulse-redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp 1
+      - --memory 1G
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redpanda Web Console (visualize topics, partitions and events)
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.5.2
+    container_name: agropulse-console
+    depends_on:
+      - redpanda
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BROKERS: "redpanda:29092"
+
+  # 3. AgroPulse IoT Simulator
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agropulse-simulator
+    command: ["npm", "run", "simulator"]
+    depends_on:
+      - redpanda
+    ports:
+      - "4000:4000"
+    environment:
+      KAFKA_BROKERS: "redpanda:29092"
+      SIMULATOR_PORT: "4000"
+      TICK_INTERVAL_MS: "4000"
+    restart: unless-stopped
+
+  # 4. AgroPulse Ingestion Worker (Kafka -> Supabase)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agropulse-worker
+    command: ["npm", "run", "worker"]
+    depends_on:
+      - redpanda
+    environment:
+      KAFKA_BROKERS: "redpanda:29092"
+      SUPABASE_URL: "${SUPABASE_URL:-http://host.docker.internal:54321}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+      VALVE_FAILURE_RATE: "${VALVE_FAILURE_RATE:-0.0}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
